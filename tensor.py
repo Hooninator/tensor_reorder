@@ -6,6 +6,7 @@ from collections import defaultdict
 from jaccard import jaccard_cluster
 from kmeans import kmeans_cluster
 from unif_random import random_cluster
+from lexi import lexi_order
 
 
 def prefix_sum(arr):
@@ -29,7 +30,7 @@ class Tensor:
             "random": random_cluster,
             "kmeans": kmeans_cluster,
             "jaccard": jaccard_cluster,
-            "lexi": None  # TODO
+            "lexi": lexi_order
         }
 
     def reorder(self, reorder_str: str, **kwargs):
