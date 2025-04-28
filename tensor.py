@@ -47,6 +47,25 @@ class Tensor:
             mode_nblocks.append(nblocks)
         return mode_nblocks
 
+    def reorder_tiled(self, reorder_str: str, **kwargs):
+        tile_size = kwargs["tilde_size"]
+        mode_nblocks = []
+        for k in range(self.order):
+            unfolding = self.unfold_modek(k)
+            nrows = self.mode_sizes[k]
+            ntiles = self.get_unfolding_ncols(k)
+            nblocks = 0
+            for tile_id in range(ntiles // tile_size):
+                unfolding_dict = self.make_unfolding_dict_tiled(
+                    unfolding, tile_id, tile_size)
+                clusters = self.reorder_funcs[reorder_str](
+                    unfolding_dict, nrows, **kwargs)
+                reordered_dict = self.reorder_from_clusters(
+                    unfolding_dict, clusters)
+                nblocks += self.count_blocks_unfolded(reordered_dict)
+            mode_nblocks.append(nblocks)
+        return mode_nblocks
+
     def reorder_from_clusters(self, unfolding_dict, clusters):
         cluster_sizes = defaultdict(lambda: 0)
         for c in clusters:
@@ -98,6 +117,17 @@ class Tensor:
             d[rid].append(int(value[1]))
         return d
 
+    def make_unfolding_dict_tiled(self, unfolding, tile_id, tile_size):
+        lower = tile_id * tile_size
+        upper = lower + tile_size
+        d = defaultdict(list)
+        for i in range(len(unfolding)):
+            value = unfolding[i]
+            rid = int(value[0])
+            if lower <= value[1] and value[1] < upper:
+                d[rid].append(int(value[1]))
+        return d
+
     def idx_to_inds(self, idx):
         inds = np.zeros(self.order)
         for i in range(self.order):
@@ -122,3 +152,6 @@ class Tensor:
                 bid = (i // self.bm, j // self.bn)
                 bids.add(bid)
         return len(bids)
+
+    def get_unfolding_ncols(self, k):
+        return reduce(lambda x, y: x*y, [self.mode_sizes[i] for i in range(self.order) if i != k])
