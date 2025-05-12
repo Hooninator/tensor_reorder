@@ -10,9 +10,9 @@ from lexi import lexi_order
 
 
 def prefix_sum(arr):
-    sum_arr = np.zeros(len(arr)+1)
-    for i in range(1, len(arr)+1):
-        sum_arr[i] = sum_arr[i-1] + arr[i-1]
+    sum_arr = np.zeros(np.max(list(arr.keys())) + 1)
+    for i in range(np.max(list(arr.keys()))):
+        sum_arr[i+1] = sum_arr[i] + arr[i]
     return sum_arr
 
 
@@ -36,6 +36,7 @@ class Tensor:
     def reorder(self, reorder_str: str, **kwargs):
         mode_nblocks = []
         for k in range(self.order):
+            print(f"Reordering mode {k}")
             unfolding = self.unfold_modek(k)
             nrows = self.mode_sizes[k]
             unfolding_dict = self.make_unfolding_dict(unfolding)
@@ -48,16 +49,20 @@ class Tensor:
         return mode_nblocks
 
     def reorder_tiled(self, reorder_str: str, **kwargs):
-        tile_size = kwargs["tilde_size"]
+        tile_size = kwargs["tile_size"]
         mode_nblocks = []
         for k in range(self.order):
+            print(f"Reordering mode {k}")
             unfolding = self.unfold_modek(k)
             nrows = self.mode_sizes[k]
             ntiles = self.get_unfolding_ncols(k)
             nblocks = 0
             for tile_id in range(ntiles // tile_size):
+                print(f"Tile id: {tile_id}/{ntiles // tile_size}")
                 unfolding_dict = self.make_unfolding_dict_tiled(
                     unfolding, tile_id, tile_size)
+                if len(unfolding_dict) == 0:
+                    continue 
                 clusters = self.reorder_funcs[reorder_str](
                     unfolding_dict, nrows, **kwargs)
                 reordered_dict = self.reorder_from_clusters(
@@ -68,13 +73,17 @@ class Tensor:
 
     def reorder_from_clusters(self, unfolding_dict, clusters):
         cluster_sizes = defaultdict(lambda: 0)
-        for c in clusters:
+        for c in clusters.values():
             cluster_sizes[c] += 1
         offsets = prefix_sum(cluster_sizes)
 
+        print(len(clusters.keys()), len(unfolding_dict.keys()))
+        # assert len(clusters.keys()) == len(unfolding_dict.keys())
+
         new_dict = {}
-        for i in range(len(clusters)):
+        for i in clusters.keys():
             rid = offsets[clusters[i]]
+            # print(i, rid)
             offsets[clusters[i]] += 1
             new_dict[rid] = unfolding_dict[i]
 
@@ -95,6 +104,7 @@ class Tensor:
     def unfold_modek(self, k):
         unfolding = np.zeros(shape=(self.nnz, 3))
         h = 0
+        assert self.nnz == len(self.data)
         for value in self.data:
             i = value[k]
             offset = 1

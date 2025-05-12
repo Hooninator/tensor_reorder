@@ -19,7 +19,7 @@ def read_tensor(filepath, mode_sizes, bm, bn):
                 order = len(bits)-1
             curr = []
             for i in range(order):
-                curr.append(int(bits[i]))
+                curr.append(int(bits[i]) - 1) # 1 indexing 
             curr.append(float(bits[order]))
             coo.append(np.array(curr))
     nnz = len(coo)
@@ -49,20 +49,24 @@ def etime(stime: float) -> None:
 
 def get_tensor_name(args):
     fname = args.file
-    return fname.split("/")[-1]
+    return fname.split("/")[-1].split(".")[0]
 
 
 def get_csv_fname(args):
     tname = get_tensor_name(args)
     if args.reorder == "kmeans":
         return f"nblocks_{tname}_{args.reorder}_{args.bm}x{args.bn}{'_tiled' if args.col_tiled else ''}_k{args.nclusters}.csv"
-    return f"nblocks_{tname}_{args.reorder}_{args.bm}x{args.bn}{'_tiled' if args.col_tiled else ''}.csv"
+    if args.reorder == "jaccard":
+        return f"nblocks_{tname}_{args.reorder}_{args.bm}x{args.bn}{'_tiled' if args.col_tiled else ''}_t{args.threshold}.csv"
+    if args.reorder == "lexi":
+        return f"nblocks_{tname}_{args.reorder}_{args.bm}x{args.bn}{'_tiled' if args.col_tiled else ''}.csv"
+    return ""
 
 
 def csv_write(args, blocks, og_blocks):
     assert len(blocks) == len(og_blocks)
     fname = get_csv_fname(args)
-    with open(fname, 'w') as file:
+    with open(f"./data/{fname}", 'w') as file:
         file.write("reordered_blocks, original_blocks, mode\n")
         for i in range(len(blocks)):
             file.write(f"{blocks[i]}, {og_blocks[i]}, {i}\n")
@@ -77,6 +81,7 @@ if __name__ == "__main__":
     parser.add_argument("--bn", type=int)
     parser.add_argument("--tile_size", type=int)
     parser.add_argument("--nclusters", type=int)
+    parser.add_argument("--threshold", type=float)
     parser.add_argument("--col_tiled", action='store_true')
     parser.add_argument("--mode_sizes", nargs='+', type=int)
     args = parser.parse_args()
@@ -98,9 +103,11 @@ if __name__ == "__main__":
     print_separator()
     t3 = stime("Reordering tensor...")
     if args.col_tiled:
-        blocks = tensor.reorder_tiled(args.reorder)
+        blocks = tensor.reorder_tiled(
+            args.reorder, nclusters=args.nclusters, threshold=args.threshold, tile_size=args.tile_size)
     else:
-        blocks = tensor.reorder(args.reorder)
+        blocks = tensor.reorder(
+            args.reorder, nclusters=args.nclusters, threshold=args.threshold)
     etime(t3)
 
     print(f"Number of blocks after reordering: {blocks}")

@@ -6,6 +6,17 @@ import functools
 def lexi_order(inds_dict, nrows, **kwargs):
 
     def lexi_comp(x, y) -> int:
+
+        if len(x)==0:
+            if len(y)==0:
+                return 0
+            else:
+                return -1 
+        if len(y)==0:
+            return 1
+
+        x = list(x)
+        y = list(y)
         x.sort()
         y.sort()
         done = False
@@ -42,11 +53,13 @@ def lexi_order(inds_dict, nrows, **kwargs):
 
     sorted_inds.sort(key=functools.cmp_to_key(lexi_comp))
 
-    clusters = np.zeros(len(sorted_inds))
+    clusters = {}
 
+    print(inds_dict)
+    print(sorted_inds)
     for i in range(len(sorted_inds)):
         colinds = sorted_inds[i]
         rid = inds[colinds]
-        clusters[i] = rid
-
+        clusters[rid] = i
+    print(clusters)
     return clusters

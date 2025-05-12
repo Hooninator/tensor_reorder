@@ -24,12 +24,19 @@ def kmeans_cluster(inds_dict, nrows, **kwargs):
         cluster_vals[pid] = list(np.ones(len(cluster_inds[pid])))
 
     while iters < maxiters:
+        print(f"Kmeans iteration {iters}")
         distances = pwdist_sparse(
             inds_dict, cluster_inds, cluster_vals, nrows, k)
         assignments, cluster_inds, cluster_vals = update_clusters(
             distances, inds_dict)
+        iters+=1
 
-    return assignments
+    assignments_dict = {}
+    for i in range(len(assignments)):
+        if assignments[i] != 0:
+            assignments_dict[i] = assignments[i]
+
+    return assignments_dict
 
 
 def pwdist_sparse(inds_dict, cluster_inds, cluster_vals, n, k):
@@ -46,8 +53,9 @@ def pwdist_sparse(inds_dict, cluster_inds, cluster_vals, n, k):
 def euclidean_distance(point, cinds, cvals):
     dist = 0
     intersect = set(np.intersect1d(point, cinds))
-    for i in cinds:
-        if i in intersect:
+    for i in range(len(cinds)):
+        idx = cinds[i]
+        if idx in intersect:
             dist += np.square(1 - cvals[i])
         else:
             dist += np.square(cvals[i])
